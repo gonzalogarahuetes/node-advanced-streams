@@ -48,4 +48,4 @@ const stream = Readable.from(findAllStream())
 //     console.log(item);
 // }
 
-await pipeline( stream, createWriteStream("./data/output.json"));
+await pipeline(stream, createWriteStream("./data/output.json"));
