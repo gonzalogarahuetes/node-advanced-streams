@@ -1,8 +1,8 @@
 import { createReadStream } from "node:fs";
 import { createServer } from "node:http";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
+import { WritableStream, TransformStream } from "node:stream/web";
 import csvtojson from "csvtojson";
-import { Transform } from "node:stream";
 
 const PORT = 3000;
 
@@ -63,16 +63,13 @@ async function handleRequest(req, res) {
     const abortController = createAbortController(req)
 
     try {
+        res.writeHead(200, headers);
         await Readable.toWeb(createReadStream("./imd_movies.csv"))
-        .pipeThrough(Transform.toWeb(csvtojson()))
-        .pipeThrough(createTransformStream())
-        .pipeTo(createWritableWebStream(res), {
-            signal: abortController.signal
-        });
+          .pipeThrough(Transform.toWeb(csvtojson()))
+          .pipeThrough(createTransformStream())
+          .pipeTo(createWritableWebStream(res), { signal: abortController.signal });
     } catch (error) {
-        if(error.name === "AbortError") {
-            console.log("Stream ended.");
-        } else {
+        if(error.name !== "AbortError") {
             console.log("Unexpected error", error);
             res.statusCode = 500;
             res.end("Internal Server Error")
