@@ -11,6 +11,28 @@ const headers = {
     "Access-Control-Allow-Methods": "*"
 }
 
+function createTransformStream() {
+    return new TransformStream({
+        transform(chunk, ctrl) {
+            try {
+                const rawData = JSON.parse(Buffer.from(chunk));
+
+                const selectedFields = JSON.stringify({
+                    title: rawData.title,
+                    vote: rawData.vote_average,
+                    poster: rawData.poster_path
+                })
+
+                console.log(selectedFields);
+                
+                ctrl.enqueue(selectedFields.concat("\n"));
+            } catch (error) {
+                console.log("Error processing chunk: ", error);
+            }
+        }
+    })
+}
+
 function createWritableWebStream(res) {
     return new WritableStream({
         write(chunk) {
@@ -31,6 +53,7 @@ async function handleRequest(req, res) {
 
     Readable.toWeb(createReadStream("./imd_movies.csv"))
     .pipeThrough(Transform.toWeb(csvtojson()))
+    .pipeThrough(createTransformStream())
     .pipeTo(createWritableWebStream(res));
 }
 
