@@ -11,6 +11,15 @@ const headers = {
     "Access-Control-Allow-Methods": "*"
 }
 
+function createAbortController(req) {
+    const abortController = new AbortController();
+    req.once("close", () => {
+        console.log("Client disconnected, aborting stream...");
+        abortController.abort()
+    })
+    return abortController;
+}
+
 function createTransformStream() {
     return new TransformStream({
         transform(chunk, ctrl) {
@@ -51,10 +60,25 @@ async function handleRequest(req, res) {
         return;
     }
 
-    Readable.toWeb(createReadStream("./imd_movies.csv"))
-    .pipeThrough(Transform.toWeb(csvtojson()))
-    .pipeThrough(createTransformStream())
-    .pipeTo(createWritableWebStream(res));
+    const abortController = createAbortController(req)
+
+    try {
+        await Readable.toWeb(createReadStream("./imd_movies.csv"))
+        .pipeThrough(Transform.toWeb(csvtojson()))
+        .pipeThrough(createTransformStream())
+        .pipeTo(createWritableWebStream(res), {
+            signal: abortController.signal
+        });
+    } catch (error) {
+        if(error.name === "AbortError") {
+            console.log("Stream ended.");
+        } else {
+            console.log("Unexpected error", error);
+            res.statusCode = 500;
+            res.end("Internal Server Error")
+        }
+    }
+
 }
 
 createServer(handleRequest).listen(PORT, () => console.log(`Backend is listening on port ${PORT}`));
