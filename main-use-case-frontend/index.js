@@ -40,14 +40,35 @@ function parseChunks() {
     })
 }
 
+function displayData(element) {
+    return new WritableStream({
+        write({ title, vote, poster }) {
+            const article = `
+                <article>
+                    <div class="text">
+                        <h2>${title}</h2>
+                        <h3>Rating: ${vote}</h3>
+                        <a href="${poster}">View Poster</a>
+                    </div>
+                </article>
+            `;
+            element.innerHTML += article;
+        }
+    })
+}
+
+const start = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const cards = document.getElementById("cards");
+
 let abortController = new AbortController();
 
-(async () => {
-   const readableStream = await consumeAPI(abortController.signal);
-   readableStream.pipeTo(new WritableStream({
-        write(chunk) {
-            console.log("chunk: ", chunk);
-            
-        }
-   }))
-})();
+start.addEventListener("click", async () => {
+    const readableStream = await consumeAPI(abortController.signal);
+    readableStream.pipeTo(displayData(cards));
+});
+
+stopBtn.addEventListener("click", async () => {
+    abortController.abort();
+    abortController = new AbortController();
+});
