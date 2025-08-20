@@ -6,7 +6,7 @@ import split from "split";
 pipeline(
     createReadStream("./movies.csv"),
     split(),
-    new ConcurrentStream(async (line, encoding, push, done) => {
+    new ConcurrentStream(4, async (line, encoding, push, done) => {
         if(!line.trim()) {
             return done();
         }

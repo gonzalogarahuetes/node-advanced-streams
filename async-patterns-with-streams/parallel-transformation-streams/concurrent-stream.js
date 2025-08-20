@@ -1,9 +1,11 @@
 import { Transform } from "node:stream";
 
 export class ConcurrentStream extends Transform {
-    constructor(processChunk, options = {}) {
+    constructor(concurrencyLimit = 10, processChunk, options = {}) {
         super({ objectMode: true, ...options });
+        this.limit = concurrencyLimit;
         this.processChunk = processChunk;
+        this.queuedTasks = []
         this.activeTasks = 0;
         this.finalizeCallback = null;
     }
@@ -17,7 +19,11 @@ export class ConcurrentStream extends Transform {
             this._taskComplete.bind(this),
         );
 
-        callback();
+        if(this.activeTasks < this.limit) {
+            callback();
+        } else {
+            this.queuedTasks.push(callback);
+        }
     }
 
     _flush(callback) {
@@ -32,6 +38,11 @@ export class ConcurrentStream extends Transform {
         this.activeTasks --;
         if(error) {
             return this.emit("error", error);
+        }
+
+        if(this.activeTasks >= this.limit) {
+            const firstCallback = this.queuedTasks.shift();
+            firstCallback();
         }
 
         if(this.activeTasks === 0 && this.finalizeCallback) {
