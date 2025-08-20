@@ -1,12 +1,14 @@
 import { pipeline } from "node:stream";
 import { createWriteStream, createReadStream } from "node:fs";
-import { ConcurrentStream } from "./concurrent-stream.js";
 import split from "split";
+import parallelTransform from "parallel-transform";
+
+const PARALLELISM = 2;
 
 pipeline(
     createReadStream("./movies.csv"),
     split(),
-    new ConcurrentStream(4, async (line, encoding, push, done) => {
+    parallelTransform(PARALLELISM, async (line, done) => {
         if(!line.trim()) {
             return done();
         }
@@ -16,7 +18,7 @@ pipeline(
             const rating = parseFloat(ratingStr);
 
             if(rating > 5) {
-                push(`Title: ${title}, Rating: ${rating}, Poster: ${posterPath}\n`);
+                done(null, `Title: ${title}, Rating: ${rating}, Poster: ${posterPath}\n`);
             } else {
                 done();
             }
